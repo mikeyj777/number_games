@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spooky Number Counter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #7c2d12;
+            color: #fff7ed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #counter-container {
+            background-color: #92400e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #fed7aa;
+            margin-bottom: 20px;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #7e22ce;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #9333ea;
+        }
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #reset {
+            background-color: #b91c1c;
+        }
+        #reset:hover {
+            background-color: #dc2626;
+        }
+        #undo {
+            background-color: #15803d;
+        }
+        #undo:hover {
+            background-color: #16a34a;
+        }
+        #chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #9a3412;
+            color: #fff7ed;
+        }
+        input::placeholder {
+            color: #fed7aa;
+        }
+        #submit {
+            background-color: #ca8a04;
+            color: black;
+        }
+        #submit:hover {
+            background-color: #eab308;
+        }
+        .ghost {
+            position: absolute;
+            width: 50px;
+            height: 70px;
+            transition: all 0.5s ease-in-out;
+        }
+        .ghost-body {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 50% 50% 0 0;
+            position: relative;
+        }
+        .ghost-eyes {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 20px;
+        }
+        .ghost-eye {
+            width: 10px;
+            height: 10px;
+            background: black;
+            border-radius: 50%;
+        }
+        .ghost-tail {
+            height: 20px;
+            background: white;
+            border-radius: 0 0 10px 10px;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes flyAround {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(50px, -50px) rotate(90deg); }
+            50% { transform: translate(0, -100px) rotate(180deg); }
+            75% { transform: translate(-50px, -50px) rotate(270deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
+        }
+        .sparkle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: gold;
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+        }
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="counter-container">
+        <h1>Emma's Spooky Number Counter</h1>
+        <div class="button-grid" id="number-buttons"></div>
+        <div class="control-buttons">
+            <button id="reset">Reset</button>
+            <button id="undo">Undo</button>
+        </div>
+        <div id="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+        <div class="input-container">
+            <input type="number" id="manual-input" min="1" max="20" placeholder="Enter a number (1-20)">
+            <button id="submit">Submit</button>
+        </div>
+    </div>
+
+    <script>
+        const counts = new Array(20).fill(0);
+        const history = [];
+        let chart;
+        const ghosts = [];
+
+        function createNumberButtons() {
+            const container = document.getElementById('number-buttons');
+            for (let i = 1; i <= 20; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.addEventListener('click', () => incrementCount(i));
+                container.appendChild(button);
+            }
+        }
+
+        function createGhosts() {
+            const container = document.getElementById('counter-container');
+            for (let i = 0; i < 5; i++) {
+                const ghost = document.createElement('div');
+                ghost.className = 'ghost';
+                ghost.innerHTML = `
+                    <div class="ghost-body">
+                        <div class="ghost-eyes">
+                            <div class="ghost-eye"></div>
+                            <div class="ghost-eye"></div>
+                        </div>
+                    </div>
+                    <div class="ghost-tail"></div>
+                `;
+                ghost.style.right = `${i * 10}%`;
+                ghost.style.bottom = '20px';
+                ghost.style.animation = 'float 5s ease-in-out infinite';
+                ghost.style.animationDelay = `${i * 0.5}s`;
+                ghost.addEventListener('mouseenter', () => ghost.style.opacity = '0.3');
+                ghost.addEventListener('mouseleave', () => ghost.style.opacity = '1');
+                container.appendChild(ghost);
+                ghosts.push(ghost);
+            }
+        }
+
+        function animateGhosts() {
+            ghosts.forEach(ghost => {
+                ghost.style.animation = 'flyAround 1s ease-in-out';
+                setTimeout(() => {
+                    ghost.style.animation = 'float 5s ease-in-out infinite';
+                }, 1000);
+            });
+        }
+
+        function createSparkles(index) {
+            const chartContainer = document.getElementById('chart-container');
+            const chartRect = chartContainer.getBoundingClientRect();
+            const barWidth = chartRect.width / 20;
+            const barHeight = chartRect.height * (counts[index] / Math.max(...counts, 1));
+            const barX = chartRect.left + barWidth * index;
+            const barY = chartRect.bottom - barHeight;
+
+            for (let i = 0; i < 10; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = `${barX + Math.random() * barWidth}px`;
+                sparkle.style.top = `${barY + Math.random() * barHeight}px`;
+                sparkle.style.animation = `sparkle 0.5s linear infinite ${Math.random() * 0.5}s`;
+                document.body.appendChild(sparkle);
+
+                setTimeout(() => sparkle.remove(), 2000);
+            }
+        }
+
+        function incrementCount(number) {
+            counts[number - 1]++;
+            history.push({ type: 'increment', number });
+            updateChart();
+            createSparkles(number - 1);
+            animateGhosts();
+        }
+
+        function resetCounts() {
+            history.push({ type: 'reset', prevCounts: [...counts] });
+            counts.fill(0);
+            updateChart();
+        }
+
+        function undo() {
+            if (history.length === 0) return;
+            const lastAction = history.pop();
+            if (lastAction.type === 'increment') {
+                counts[lastAction.number - 1]--;
+            } else if (lastAction.type === 'reset') {
+                counts.splice(0, counts.length, ...lastAction.prevCounts);
+            }
+            updateChart();
+        }
+
+        function updateChart() {
+            chart.data.datasets[0].data = counts;
+            chart.update();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 20}, (_, i) => i + 1),
+                    datasets: [{
+                        label: 'Count',
+                        data: counts,
+                        backgroundColor: '#d97706',
+                        borderColor: '#b45309',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#fed7aa'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#fed7aa'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createNumberButtons();
+            createGhosts();
+            initChart();
+
+            document.getElementById('reset').addEventListener('click', resetCounts);
+            document.getElementById('undo').addEventListener('click', undo);
+            document.getElementById('submit').addEventListener('click', () => {
+                const input = document.getElementById('manual-input');
+                const number = parseInt(input.value);
+                if (number >= 1 && number <= 20) {
+                    incrementCount(number);
+                    input.value = '';
+                } else {
+                    alert('Please enter a number between 1 and 20.');
+                }
+            });
+
+            document.getElementById('manual-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('submit').click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

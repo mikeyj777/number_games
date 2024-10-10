@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spooky 3D Dice Roller</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #7c2d12;
+            color: #fff7ed;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #roller-container {
+            background-color: #92400e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #fed7aa;
+        }
+        #dice-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            perspective: 1000px;
+        }
+        .dice {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 1s;
+        }
+        .dice-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #a855f7;
+            border: 2px solid #4a044e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+        }
+        .pip {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+        }
+        .dice-face[data-value="1"] { transform: translateZ(50px); }
+        .dice-face[data-value="2"] { transform: rotateY(90deg) translateZ(50px); }
+        .dice-face[data-value="3"] { transform: rotateY(-180deg) translateZ(50px); }
+        .dice-face[data-value="4"] { transform: rotateY(-90deg) translateZ(50px); }
+        .dice-face[data-value="5"] { transform: rotateX(90deg) translateZ(50px); }
+        .dice-face[data-value="6"] { transform: rotateX(-90deg) translateZ(50px); }
+        #roll-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            background-color: #7e22ce;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        #chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        @media (max-width: 600px) {
+            #dice-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .dice {
+                margin-bottom: 20px;
+            }
+            #chart-container {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="roller-container">
+        <h1>Spooky 3D Dice Roller</h1>
+        <div id="dice-container">
+            <div id="dice1" class="dice">
+                <div class="dice-face" data-value="1"></div>
+                <div class="dice-face" data-value="2"></div>
+                <div class="dice-face" data-value="3"></div>
+                <div class="dice-face" data-value="4"></div>
+                <div class="dice-face" data-value="5"></div>
+                <div class="dice-face" data-value="6"></div>
+            </div>
+            <div id="dice2" class="dice">
+                <div class="dice-face" data-value="1"></div>
+                <div class="dice-face" data-value="2"></div>
+                <div class="dice-face" data-value="3"></div>
+                <div class="dice-face" data-value="4"></div>
+                <div class="dice-face" data-value="5"></div>
+                <div class="dice-face" data-value="6"></div>
+            </div>
+        </div>
+        <button id="roll-btn">Roll the Spooky Dice!</button>
+        <div id="chart-container">
+            <canvas id="rollChart"></canvas>
+        </div>
+    </div>
+    <script>
+        const dice1 = document.getElementById('dice1');
+        const dice2 = document.getElementById('dice2');
+        const rollBtn = document.getElementById('roll-btn');
+        const chartContainer = document.getElementById('chart-container');
+        let rollData = Array(11).fill(0);
+        let chart;
+
+        const pipPositions = {
+            1: [[40, 40]],
+            2: [[20, 20], [60, 60]],
+            3: [[20, 20], [40, 40], [60, 60]],
+            4: [[20, 20], [20, 60], [60, 20], [60, 60]],
+            5: [[20, 20], [20, 60], [40, 40], [60, 20], [60, 60]],
+            6: [[20, 20], [20, 40], [20, 60], [60, 20], [60, 40], [60, 60]]
+        };
+
+        function createPips(face, value) {
+            face.innerHTML = '';
+            pipPositions[value].forEach(([x, y]) => {
+                const pip = document.createElement('div');
+                pip.classList.add('pip');
+                pip.style.left = `${x}%`;
+                pip.style.top = `${y}%`;
+                face.appendChild(pip);
+            });
+        }
+
+        function rollDie(die) {
+            let rollValue = Math.floor(Math.random() * 6) + 1;
+            rollValue = 5;
+            const faces = die.querySelectorAll('.dice-face');
+            faces.forEach(face => {
+                const faceValue = parseInt(face.getAttribute('data-value'));
+                createPips(face, faceValue);
+            });
+
+            die.style.transition = 'transform 1s ease-out';
+            die.style.transform = `rotateX(${Math.random() * 360}deg) rotateY(${Math.random() * 360}deg) rotateZ(${Math.random() * 360}deg)`;
+
+            setTimeout(() => {
+                die.style.transition = 'transform 0.2s ease-out';
+                switch(rollValue) {
+                    case 1:
+                        die.style.transform = 'rotateX(0deg) rotateY(0deg)';
+                        break;
+                    case 2:
+                        die.style.transform = 'rotateY(-90deg)';
+                        break;
+                    case 3:
+                        die.style.transform = 'rotateY(-180deg)';
+                        break;
+                    case 4:
+                        die.style.transform = 'rotateY(90deg)';
+                        break;
+                    case 5:
+                        die.style.transform = 'rotateX(-90deg)';
+                        break;
+                    case 6:
+                        die.style.transform = 'rotateX(90deg)';
+                        break;
+                }
+            }, 1000);
+
+            return rollValue;
+        }
+
+        function updateChart() {
+            console.log('updating chart. roll data: ' + rollData);
+            chart.data.datasets[0].data = rollData;
+            chart.update();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('rollChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 11}, (_, i) => i + 2),
+                    datasets: [{
+                        label: 'Roll Count',
+                        data: rollData,
+                        backgroundColor: '#a855f7',
+                        borderColor: '#4a044e',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#fed7aa'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Dice Sum',
+                                color: '#fed7aa'
+                            },
+                            ticks: {
+                                color: '#fed7aa'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Dice Roll Distribution',
+                            color: '#fed7aa',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        rollBtn.addEventListener('click', () => {
+            const roll1 = rollDie(dice1);
+            const roll2 = rollDie(dice2);
+            const totalRoll = roll1 + roll2;
+            console.log("total roll: " + totalRoll);
+            rollData[totalRoll - 2]++;
+            console.log("roll data: " + rollData);
+            updateChart();
+        });
+
+        // Initialize dice and chart
+        [dice1, dice2].forEach(die => {
+            const faces = die.querySelectorAll('.dice-face');
+            faces.forEach(face => {
+                const value = face.getAttribute('data-value');
+                createPips(face, parseInt(value));
+            });
+        });
+
+        initChart();
+    </script>
+</body>
+</html>
